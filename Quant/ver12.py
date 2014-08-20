@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# 2014/8/19
+# 2014/8/20
 # Author: Vince CHEN
 
 from PyQt4 import QtGui
