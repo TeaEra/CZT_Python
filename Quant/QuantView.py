@@ -1,222 +1,30 @@
-# -*- coding: utf-8 -*-
-
-# 2014/8/20
-# Author: Vince CHEN
+__author__ = 'TeaEra'
 
 from PyQt4 import QtGui
 from PyQt4 import QtCore
 import pandas as pd
-import os
+
+from QuantUtils import from_utf8
+from QuantUtils import translate
+from QuantUtils import get_k_line_data_by_path
+from QuantUtils import get_min_and_max_price
+
+from QuantModel import RectLikeLine
+from QuantModel import PixMapSettings
 
 ################################################################################
-# Already copied;
-
-
-try:
-    _from_utf8 = QtCore.QString.fromUtf8
-except AttributeError:
-    def _from_utf8(s):
-        return s
-
-try:
-    _encoding = QtGui.QApplication.UnicodeUTF8
-
-    def _translate(context, text, disambig):
-        return QtGui.QApplication.translate(context, text, disambig, _encoding)
-except AttributeError:
-    def _translate(context, text, disambig):
-        return QtGui.QApplication.translate(context, text, disambig)
-
-################################################################################
-# TODO: ready for refactor;
-
-
-class AllDataForTest(object):
-    """
-    All prepared data:
-      - header info for 3 tabs;
-      - model data for tab 0;
-      - updated model data for tab 0;
-    """
-
-    @staticmethod
-    def get_header_info0():
-        return [
-            "期初权益", "当前权益", "可用资金", "平仓盈亏",
-            "持仓盈亏", "总盈亏", "持仓保证金", "资金风险率"
-        ]
-
-    @staticmethod
-    def get_header_info1():
-        return [
-            "成交编号", "合约", "买卖", "开平", "成交价格",
-            "成交手数", "成交时间", "报单编号", "成交类型", "投保", "交易所"
-        ]
-
-    @staticmethod
-    def get_header_info2():
-        return [
-            "文华码", "合约名称", "涨幅%", "开盘", "最高", "最低",
-            "最新", "涨跌", "买价", "买量", "卖价", "卖量", "现量",
-            "增仓", "成交量", "持仓量", "日增仓", "结算", "昨结算", "昨收"
-        ]
-
-    @staticmethod
-    def get_model_data0():
-        return [
-            ['a1', 'a2', 'a3', 'a4', 'a5', 'a6', 'a7', 'a8'],
-            ['b1', 'b2', 'b3', 'b4', 'b5', 'b6', 'b7', 'b8'],
-            ['c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8'],
-            ['d1', 'd2', 'd3', 'd4', 'd5', 'd6', 'd7', 'd8'],
-            ['e1', 'e2', 'e3', 'e4', 'e5', 'e6', 'e7', 'e8'],
-            ['f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7', 'f8'],
-            ['g1', 'g2', 'g3', 'g4', 'g5', 'g6', 'g7', 'g8'],
-            ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'h7', 'h8'],
-            ['i1', 'i2', 'i3', 'i4', 'i5', 'i6', 'i7', 'i8']
-        ]
-
-    @staticmethod
-    def get_updated_model_data0():
-        return [
-            ['a1u', 'a2', 'a3', 'a4', 'a5', 'a6', 'a7', 'a8'],
-            ['b1', 'b2u', 'b3', 'b4', 'b5', 'b6', 'b7', 'b8'],
-            ['c1', 'c2', 'c3u', 'c4', 'c5', 'c6', 'c7', 'c8'],
-            ['d1', 'd2', 'd3', 'd4u', 'd5', 'd6', 'd7', 'd8'],
-            ['e1', 'e2', 'e3', 'e4', 'e5u', 'e6', 'e7', 'e8'],
-            ['f1', 'f2', 'f3', 'f4', 'f5', 'f6u', 'f7', 'f8'],
-            ['g1', 'g2', 'g3', 'g4', 'g5', 'g6', 'g7u', 'g8'],
-            ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'h7', 'h8u'],
-            ['i1u', 'i2u', 'i3', 'i4u', 'i5', 'i6', 'i7', 'i8u']
-        ]
-
-################################################################################
-# TODO: ready for refactor;
-
-
-class UtilForTest(object):
-    """
-    Some prepared functions;
-    """
-
-    # Clear content data;
-    @staticmethod
-    def clean_data(model):
-        model.removeRows(0, model.rowCount())
-
-    # Assign content data;
-    @staticmethod
-    def assign_data(model, data):
-        for eachRow in data:
-            each_row_items = \
-                [QtGui.QStandardItem(QtCore.QString(_from_utf8(str(item))))
-                 for item in eachRow]
-            model.appendRow(each_row_items)
-
-    # Assign header info;
-    @staticmethod
-    def assign_header_info(model, header_info):
-        for i in range(len(header_info)):
-            model.setHeaderData(
-                i, QtCore.Qt.Horizontal,
-                QtCore.QVariant(_from_utf8(str(header_info[i])))
-            )
-
-    # Fore: yellow;
-    # Back: black;
-    @staticmethod
-    def assign_data_with_color(model):
-        for i in range(model.rowCount()):
-            for j in range(model.columnCount()):
-                model.setData(model.index(i, j), QtGui.QColor(QtCore.Qt.black),
-                              QtCore.Qt.BackgroundRole)
-                model.setData(model.index(i, j), QtGui.QColor(QtCore.Qt.yellow),
-                              QtCore.Qt.ForegroundRole)
-
-    # Fore: black;
-    # Back: red;
-    @staticmethod
-    def update_data(model, updated_data):
-        for i in range(len(updated_data)):
-            for j in range(len(updated_data[0])):
-                if model.item(i, j).text()\
-                        .compare(
-                            QtCore.QString(_from_utf8(str(updated_data[i][j])))
-                        ) != 0:
-                    model.setData(
-                        model.index(i, j),
-                        QtCore.QVariant(_from_utf8(str(updated_data[i][j])))
-                    )
-                    model.setData(
-                        model.index(i, j),
-                        QtGui.QColor(QtCore.Qt.red), QtCore.Qt.BackgroundRole
-                    )
-                    model.setData(
-                        model.index(i, j),
-                        QtGui.QColor(QtCore.Qt.black), QtCore.Qt.ForegroundRole
-                    )
-
-    @staticmethod
-    def csv2frame(file_name):
-        """
-        读取CSV文件到DataFrame
-        """
-        try:
-            print "*******", file_name
-            data = pd.read_csv(file_name, index_col=0, parse_dates=True)
-            data['islong'] = False if file_name.endswith("_.csv") else True
-            assert data.index.is_unique
-        except Exception, e:
-            print u"**Warning: File \"%s\" doesn't exist!"%file_name
-            data = None
-        return data
-
-    # Get the k-line data by file-path;
-    @staticmethod
-    def get_k_line_data_by_path(path):
-        return UtilForTest.csv2frame(os.path.abspath(path))
-
-    # Get minimum & maximum of price for y-axis;
-    @staticmethod
-    def get_min_and_max_price(k_line_data):
-        if len(k_line_data) <= 0:
-            return 0, 0
-        first_entry = k_line_data.ix[k_line_data.index[0]]
-        first_list = list()
-        first_list.append(float(first_entry['open']))
-        first_list.append(float(first_entry['close']))
-        first_list.append(float(first_entry['high']))
-        first_list.append(float(first_entry['low']))
-        the_min = min(first_list)
-        the_max = max(first_list)
-        for eachIndex in k_line_data.index:
-            each_entry = k_line_data.ix[eachIndex]
-            temp_list = list()
-            temp_list.append(float(each_entry['open']))
-            temp_list.append(float(each_entry['close']))
-            temp_list.append(float(each_entry['high']))
-            temp_list.append(float(each_entry['low']))
-            temp_min = min(temp_list)
-            temp_max = max(temp_list)
-            if temp_min < the_min:
-                the_min = temp_min
-            if temp_max > the_max:
-                the_max = temp_max
-        return the_min, the_max
-
-################################################################################
-# Status: OK;
 
 
 class KLineSizeSetter(QtGui.QWidget):
     """
     """
 
-    def __init__(self, size_min=1, size_max=500, curr_value=1):
+    def __init__(self, size_min=1, size_max=100, curr_value=1):
         super(KLineSizeSetter, self).__init__()
         #
         main_grid_layout = QtGui.QGridLayout(self)
         #
-        label_size = QtGui.QLabel(_from_utf8("K-Line size: "))
+        label_size = QtGui.QLabel(from_utf8("K-Line size: "))
         spin_box_size = QtGui.QSpinBox()
         #
         main_grid_layout.addWidget(label_size, 0, 0, 1, 1)
@@ -229,35 +37,50 @@ class KLineSizeSetter(QtGui.QWidget):
         self._spin_box_size = spin_box_size
 
     def get_spin_box_size(self):
+        """
+        Getter for widget: self._spin_box_size;
+        """
         return self._spin_box_size
 
     def get_spin_box_size_value(self):
+        """
+        Getter for value of self._spin_box_size;
+        """
         return self._spin_box_size.value()
 
     def set_size_min(self, size_min):
+        """
+        Setter for minimum value of self._spin_box_size;
+        """
         self._spin_box_size.setMinimum(size_min)
 
     def set_size_max(self, size_max):
+        """
+        Setter for maximum value of self._spin_box_size;
+        """
         self._spin_box_size.setMaximum(size_max)
 
     def set_curr_value(self, curr_value):
+        """
+        Setter for value of self._spin_box_size;
+        """
         self._spin_box_size.setValue(curr_value)
+
+################################################################################
+# TODO: not enables for now;
 
 
 class IndexRangeSelector(QtGui.QWidget):
     """
     """
 
-    def __init__(self, from_index=0, to_index=1):
+    def __init__(self, from_index=0, to_index=99):
         super(IndexRangeSelector, self).__init__()
-        #
-        #self.setFixedWidth(150)
-        #self.setFixedHeight(100)
         #
         main_grid_layout = QtGui.QGridLayout(self)
         #
-        label_from = QtGui.QLabel(_from_utf8("From"))
-        label_to = QtGui.QLabel(_from_utf8("To"))
+        label_from = QtGui.QLabel(from_utf8("From"))
+        label_to = QtGui.QLabel(from_utf8("To"))
         spin_box_from = QtGui.QSpinBox()
         spin_box_to = QtGui.QSpinBox()
         #
@@ -275,22 +98,40 @@ class IndexRangeSelector(QtGui.QWidget):
         self._spin_box_to = spin_box_to
 
     def get_spin_box_from(self):
+        """
+        Getter
+        """
         return self._spin_box_from
 
     def get_spin_box_to(self):
+        """
+        Getter
+        """
         return self._spin_box_to
 
     def get_from_value(self):
+        """
+        Getter for value
+        """
         return self._spin_box_from.value()
 
     def get_to_value(self):
+        """
+        Getter for value
+        """
         return self._spin_box_to.value()
 
-    def set_from_value(self, from_value):
-        self._spin_box_from.setValue(from_value)
+    def set_from_value(self, from_index):
+        """
+        Setter
+        """
+        self._spin_box_from.setValue(from_index + 1)
 
-    def set_to_value(self, to_value):
-        self._spin_box_to.setValue(to_value)
+    def set_to_value(self, to_index):
+        """
+        Setter
+        """
+        self._spin_box_to.setValue(to_index + 1)
 
 ################################################################################
 # TODO: for test; to be removed;
@@ -320,14 +161,14 @@ class BlankArea(QtGui.QWidget):
         #
         self.update()
 
+################################################################################
+# TODO: to be used for showing info;
+
 
 class InfoArea(QtGui.QWidget):
 
     def __init__(self):
         super(InfoArea, self).__init__()
-        # About size;
-        #self.setMinimumWidth(100)
-        #self.setMinimumHeight(600)
         #
         self_palette = QtGui.QPalette()
         self_palette.setColor(
@@ -349,237 +190,6 @@ class InfoArea(QtGui.QWidget):
         self.update()
 
 ################################################################################
-# Status: OK
-
-
-class PixMapSettings(object):
-    """
-    PixMapSettings
-    """
-
-    def __init__(self):
-        super(PixMapSettings, self).__init__()
-        self._settings = {}
-        #
-        self.init_settings()
-
-    def init_settings(self):
-        """
-        Initialize settings;
-
-        :return: nothing
-        """
-        # The size of pix_map:
-        self._settings['pix_map_max_width'] = 30000.0
-        self._settings['pix_map_max_height'] = 800.0
-        # The margins:
-        self._settings['pix_map_margin_top'] = 0.0
-        self._settings['pix_map_margin_right'] = 0.0
-        self._settings['pix_map_margin_bottom'] = 0.0
-        self._settings['pix_map_margin_left'] = 0.0
-        # The size of window:
-        self._settings['window_width'] = 1000.0
-        self._settings['window_height'] = 600.0
-        # The x step:
-        self._settings['pix_map_x_step_width'] = 50.0
-        # To calculate pix_map_x_step_size:
-        self.calc_settings_about_x()
-        # To calculate pix_map_y_range:
-        self.calc_pix_map_y_range()
-
-    def calc_settings_about_x(self):
-        """
-        According to:
-          - pix_map_max_width
-          - pix_map_margin_left
-          - pix_map_margin_right
-          - pix_map_x_step_width
-        Results:
-          - pix_map_x_step_size
-          - pix_map_x_history_size
-          - pix_map_x_reserve_size
-          - pix_map_k_line_rect_width
-
-        :return: nothing
-        """
-        temp_total_width = \
-            self._settings['pix_map_max_width'] \
-            - self._settings['pix_map_margin_left'] \
-            - self._settings['pix_map_margin_right'] \
-            - self._settings['pix_map_x_step_width']
-        temp_total_size = \
-            int(
-                temp_total_width
-                / self._settings['pix_map_x_step_width']
-            )
-        self._settings['pix_map_x_step_size'] = \
-            temp_total_size
-        self._settings['pix_map_x_history_size'] = \
-            temp_total_size - 1
-        self._settings['pix_map_x_reserve_size'] = 1
-        rect_step_ratio = 0.8
-        self._settings['pix_map_k_line_rect_width'] = \
-            rect_step_ratio * self._settings['pix_map_x_step_width']
-
-    def calc_pix_map_y_range(self):
-        """
-        According to:
-          - pix_map_max_height
-          - pix_map_margin_top
-          - pix_map_margin_bottom
-        Results:
-          - pix_map_y_range
-
-        :return: nothing
-        """
-        self._settings['pix_map_y_range'] = \
-            self._settings['pix_map_max_height'] \
-            - self._settings['pix_map_margin_top'] \
-            - self._settings['pix_map_margin_bottom']
-
-    def get_settings(self):
-        """
-        Getter of _settings;
-
-        :return: self._settings
-        """
-        return self._settings
-
-    def set_margins(
-            self, margin_top=0, margin_right=0, margin_bottom=0, margin_left=0):
-        """
-
-        :param margin_top: top margin
-        :param margin_right: right margin
-        :param margin_bottom: bottom margin
-        :param margin_left: left margin
-        :return: nothing
-        """
-        # TODO: exception raise?
-        self._settings['pix_map_margin_top'] = 1.0 * margin_top
-        self._settings['pix_map_margin_right'] = 1.0 * margin_right
-        self._settings['pix_map_margin_bottom'] = 1.0 * margin_bottom
-        self._settings['pix_map_margin_left'] = 1.0 * margin_left
-        #
-        self.calc_settings_about_x()
-        self.calc_pix_map_y_range()
-
-    def set_pix_map_size(self, max_width=30000, max_height=600):
-        """
-
-        :param max_width
-        :param max_height
-        :return: nothing
-        """
-        if max_width <= 0 or max_height <= 0:
-            raise MaxSizeInvalidException()
-        else:
-            self._settings['pix_map_max_width'] = 1.0 * max_width
-            self._settings['pix_map_max_height'] = 1.0 * max_height
-            self.calc_settings_about_x()
-            self.calc_pix_map_y_range()
-
-    def set_pix_map_x_step_width(self, pix_map_x_step_width):
-        if pix_map_x_step_width <= 0:
-            raise XStepWidthInvalidException()
-        else:
-            self._settings['pix_map_x_step_width'] = \
-                1.0 * pix_map_x_step_width
-            self.calc_settings_about_x()
-
-    def set_window_size(self, window_width=1000, window_height=600):
-        if window_width <= 0 or window_height <= 0:
-            raise WindowSizeInvalidException
-        else:
-            self._settings['window_width'] = 1.0 * window_width
-            self._settings['window_height'] = 1.0 * window_height
-
-    def get_pix_map_max_width(self):
-        """
-        Getter for 'pix_map_max_width'
-        """
-        return self._settings['pix_map_max_width']
-
-    def get_pix_map_x_step_width(self):
-        """
-        Getter for 'pix_map_x_step_width'
-        """
-        return self._settings['pix_map_x_step_width']
-
-################################################################################
-# Status: OK
-
-
-class MaxSizeInvalidException(Exception):
-    """
-    Exception: MaxSizeInvalidException
-    """
-
-    def __init__(self, msg="Max size is invalid."):
-        self._msg = msg
-
-    def __str__(self):
-        return repr(self._msg)
-
-
-class XStepWidthInvalidException(Exception):
-    """
-    Exception: XStepWidthInvalidException
-    """
-
-    def __init__(self, msg="X step width is invalid."):
-        self._msg = msg
-
-    def __str__(self):
-        return repr(self._msg)
-
-
-class WindowSizeInvalidException(Exception):
-    """
-    Exception: WindowSizeInvalidException
-    """
-
-    def __init__(self, msg="Window size is invalid"):
-        self._msg = msg
-
-    def __str__(self):
-        return repr(self._msg)
-
-################################################################################
-
-
-class RectLikeLine(object):
-
-    def __init__(self):
-        super(RectLikeLine, self).__init__()
-        #
-        self._line = QtCore.QLineF()
-        self._pen_width = 0.0
-
-    def set_line_with_pen_width(self, x1, y1, x2, y2, pen_width):
-        """
-        :param x1
-        :param y1
-        :param x2
-        :param y2
-        :param pen_width
-        """
-        self._line.setLine(x1, y1 - pen_width/2.0, x2, y2 - pen_width/2.0)
-
-    def get_line(self):
-        """
-        :return self._line
-        """
-        return self._line
-
-    def get_pen_width(self):
-        """
-        :return self._pen_width
-        """
-        return self._pen_width
-
-################################################################################
-# TODO: still need refactoring;
 
 
 class KLine(QtGui.QWidget):
@@ -595,7 +205,6 @@ class KLine(QtGui.QWidget):
         # Init the instance variables:
         self._k_line_data = None
         self._k_line_data_index = None
-        #self.k_line_data_size = None
         self.pix_map = None
         self._is_loaded = False
         #
@@ -669,7 +278,7 @@ class KLine(QtGui.QWidget):
                 self.start_index: self.start_index + pix_map_x_history_size]
         self._valid_k_line_data = temp_k_line_data
         #
-        the_min, the_max = UtilForTest.get_min_and_max_price(temp_k_line_data)
+        the_min, the_max = get_min_and_max_price(temp_k_line_data)
         the_min -= 5.0
         the_max += 5.0
         self.the_min = the_min
@@ -807,7 +416,7 @@ class KLine(QtGui.QWidget):
             painter = QtGui.QPainter(self)
             painter.begin(self)
             temp_the_min, temp_the_max = \
-                UtilForTest.get_min_and_max_price(
+                get_min_and_max_price(
                     self._valid_k_line_data[
                         self._curr_k_line_index:
                         self._curr_k_line_index + self._curr_k_line_size
@@ -966,7 +575,7 @@ class KLine(QtGui.QWidget):
         Load k-line data from given file;
         """
         # About k-line data:
-        self._k_line_data = UtilForTest.get_k_line_data_by_path(data_file)
+        self._k_line_data = get_k_line_data_by_path(data_file)
         self._k_line_data_index = self._k_line_data.index
         #self.k_line_data_size = len(self._k_line_data)
         self.pix_map = QtGui.QPixmap(
@@ -980,15 +589,8 @@ class KLine(QtGui.QWidget):
         #
         self.init_pix_map()
 
-    def load_k_line(self):
-        file_dialog = QtGui.QFileDialog(self)
-        file_dialog.setWindowTitle("Load data file")
-        file_dialog.setNameFilter("Data files (*.csv)")
-        file_dialog.show()
-        if file_dialog.exec_():  # Click 'Open' will return 1;
-            data_file = file_dialog.selectedFiles()[0]
-            print(">>> Selected file: " + data_file)
-            self.load_data_from_file(data_file)
+    def load_k_line(self, data_file):
+        self.load_data_from_file(data_file)
 
 ################################################################################
 
@@ -1076,8 +678,18 @@ class KLineContainer(QtGui.QMainWindow):
     def get_k_line_slider(self):
         return self._k_line_slider
 
-    def load_k_line(self):
-        self._k_line.load_k_line()
+    def update_k_line(self, updated_data):
+        self._k_line.update_the_last_k_line(updated_data)
+        self._k_line_slider.setValue(self._max_offset)
+        self.slide_to_offset(self._max_offset)
+
+    def append_k_line(self, appended_data):
+        self._k_line.append_one_k_line(appended_data)
+        self._k_line_slider.setValue(self._max_offset)
+        self.slide_to_offset(self._max_offset)
+
+    def load_k_line(self, data_file):
+        self._k_line.load_k_line(data_file)
         #
         self._k_line_size_setter.set_size_min(1)
         self._k_line_size_setter.set_size_max(1000)
@@ -1088,6 +700,16 @@ class KLineContainer(QtGui.QMainWindow):
         #
         self.slide_to_offset(self._max_offset)
         self._k_line_slider.setEnabled(True)
+
+################################################################################
+
+
+class QuotationView(QtGui.QTableView):
+    """
+    """
+
+    def __init__(self):
+        super(QuotationView, self).__init__()
 
 ################################################################################
 # TODO: my refactoring main form;
@@ -1119,10 +741,15 @@ class MainForm(QtGui.QWidget):
         tab_widget = QtGui.QTabWidget(self)
         tab_widget.setTabPosition(QtGui.QTabWidget.South)
         #
+        # Tab 'List':
+        tab_list = QtGui.QWidget()
+        tab_list_grid_layout = QtGui.QGridLayout(tab_list)
+        tab_widget.addTab(tab_list, from_utf8("List"))
+        #
         # Tab 'K-Line':
         tab_k_line = QtGui.QWidget()
         tab_k_line_grid_layout = QtGui.QGridLayout(tab_k_line)
-        tab_widget.addTab(tab_k_line, _from_utf8(""))
+        tab_widget.addTab(tab_k_line, from_utf8("K-Line"))
         pix_map_settings = PixMapSettings()
         k_line_container = KLineContainer(pix_map_settings)
         #
@@ -1133,30 +760,33 @@ class MainForm(QtGui.QWidget):
             0, 0, 1, 1
         )
         #
-        # Tab 'None':
-        tab_none = QtGui.QWidget()
-        tab_none_grid_layout = QtGui.QGridLayout(tab_none)
-        tab_widget.addTab(tab_none, _from_utf8(""))
-        #
         # Set tab text for all tabs:
         self.setWindowTitle(
-            _translate("Form", "TE-K-Line", None)
+            translate("Form", "TE-K-Line", None)
         )
+        '''
         tab_widget.setTabText(
             tab_widget.indexOf(tab_k_line),
-            _translate("Form", "K-Line", None)
+            translate("Form", "K-Line", None)
         )
         tab_widget.setTabText(
             tab_widget.indexOf(tab_none),
-            _translate("Form", "None", None)
+            translate("Form", "None", None)
         )
+        '''
         #
         # Menu_bar for tab 'K-Line':
         tab_k_line_menu_bar = QtGui.QMenuBar(tab_widget)
+        menu_none = tab_k_line_menu_bar.addMenu("List")
         menu_k_line = tab_k_line_menu_bar.addMenu("K-Line")
-        menu_none = tab_k_line_menu_bar.addMenu("None")
         #
         # Menu 'menu_k_line':
+        action_load = menu_k_line.addAction("Load data file")
+        QtCore.QObject.connect(
+            action_load,
+            QtCore.SIGNAL("triggered()"), self.load_k_line
+        )
+        menu_k_line.addSeparator()
         action_update = menu_k_line.addAction("Update last k-line")
         action_append = menu_k_line.addAction("Append one k-line")
         QtCore.QObject.connect(
@@ -1167,49 +797,31 @@ class MainForm(QtGui.QWidget):
             action_append,
             QtCore.SIGNAL("triggered()"), self.append_k_line
         )
-        menu_k_line.addSeparator()
-        action_load = menu_k_line.addAction("Load data file")
-        QtCore.QObject.connect(
-            action_load,
-            QtCore.SIGNAL("triggered()"), self.load_k_line
-        )
         #
         # Add tab_widget & tab_k_line_menu_bar:
         main_form_grid_layout.addWidget(tab_widget, 1, 0, 1, 1)
         main_form_grid_layout.addWidget(tab_k_line_menu_bar, 0, 0, 1, 1)
 
     def update_k_line(self):
-        self._k_line_container.get_k_line().update_the_last_k_line(
+        # TODO: should be refactored as API;
+        updated_data = \
             self._k_line_container.get_k_line().get_data().ix[0]
-        )
-        self._k_line_container.get_k_line_slider().setValue(
-            self._k_line_container.get_max_offset()
-        )
-        self._k_line_container.slide_to_offset(
-            self._k_line_container.get_max_offset()
-        )
+        #
+        self._k_line_container.update_k_line(updated_data)
 
     def append_k_line(self):
-        self._k_line_container.get_k_line().append_one_k_line(
+        # TODO: should be refactored as API;
+        appended_data = \
             self._k_line_container.get_k_line().get_data()[0:1]
-        )
-        self._k_line_container.get_k_line_slider().setValue(
-            self._k_line_container.get_max_offset()
-        )
-        self._k_line_container.slide_to_offset(
-            self._k_line_container.get_max_offset()
-        )
+        #
+        self._k_line_container.append_k_line(appended_data)
 
     def load_k_line(self):
-        self._k_line_container.load_k_line()
-
-################################################################################
-# Main portal:
-if __name__ == "__main__":
-    print(">>> Main portal")
-    #
-    import sys
-    app = QtGui.QApplication(sys.argv)
-    main_form = MainForm()
-    main_form.show()
-    sys.exit(app.exec_())
+        file_dialog = QtGui.QFileDialog(self)
+        file_dialog.setWindowTitle("Load data file")
+        file_dialog.setNameFilter("Data files (*.csv)")
+        file_dialog.show()
+        if file_dialog.exec_():  # Click 'Open' will return 1;
+            data_file = file_dialog.selectedFiles()[0]
+            print(">>> Selected file: " + data_file)
+            self._k_line_container.load_k_line(data_file)
