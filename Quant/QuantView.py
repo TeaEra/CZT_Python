@@ -12,6 +12,8 @@ from QuantUtils import get_min_and_max_price
 from QuantModel import RectLikeLine
 from QuantModel import PixMapSettings
 
+from QuantTestData import AllDataForTest
+
 ################################################################################
 
 
@@ -708,8 +710,150 @@ class QuotationView(QtGui.QTableView):
     """
     """
 
-    def __init__(self):
+    def __init__(
+        self, data=None,
+        horizontal_header_info=None,
+        vertical_header_info=None
+    ):
         super(QuotationView, self).__init__()
+        self._model = QtGui.QStandardItemModel()
+        self.setModel(self._model)
+        self._is_data_loaded = False
+        #
+        if data:
+            self.set_data(data)
+        #
+        if horizontal_header_info:
+            self.set_horizontal_header(horizontal_header_info)
+        #
+        if vertical_header_info:
+            self.set_vertical_header(vertical_header_info)
+
+    def clean_data(self):
+        self._model.removeRows(0, self._model.rowCount())
+
+    def remove_data(self):
+        self.clean_data()
+        self.horizontalHeader().hide()
+        self.verticalHeader().hide()
+
+    def set_data(self, data):
+        #
+        self.clean_data()
+        #
+        for each_row in data:
+            each_row_items = \
+                [
+                    QtGui.QStandardItem(from_utf8(str(item)))
+                    for item in each_row
+                ]
+            self._model.appendRow(each_row_items)
+        #
+        self._is_data_loaded = True
+        self.show_header()
+
+    def set_horizontal_header(self, horizontal_header_info):
+        for i in range(len(horizontal_header_info)):
+            self._model.setHeaderData(
+                i, QtCore.Qt.Horizontal,
+                QtCore.QVariant(from_utf8(str(horizontal_header_info[i])))
+            )
+
+    def set_vertical_header(self, vertical_header_info):
+        for i in range(len(vertical_header_info)):
+            self._model.setHeaderData(
+                i, QtCore.Qt.Vertical,
+                QtCore.QVariant(from_utf8(str(vertical_header_info[i])))
+            )
+
+    def set_data_color(self):
+        for i in range(self._model.rowCount()):
+            for j in range(self._model.columnCount()):
+                self._model.setData(
+                    self._model.index(i, j),
+                    QtGui.QColor(QtCore.Qt.black),
+                    QtCore.Qt.BackgroundRole
+                )
+                self._model.setData(
+                    self._model.index(i, j),
+                    QtGui.QColor(QtCore.Qt.yellow),
+                    QtCore.Qt.ForegroundRole
+                )
+
+    def show_header(self):
+        self.horizontalHeader().show()
+        self.verticalHeader().show()
+
+    def enable_header_sorting(self):
+        self.setSortingEnabled(True)
+
+    def enable_popup_context_menu(self):
+        horizontal_header = self.horizontalHeader()
+        vertical_header = self.verticalHeader()
+        #horizontal_header.setClickable(True)
+        #vertical_header.setClickable(True)
+        horizontal_header.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        vertical_header.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        horizontal_header.customContextMenuRequested.connect(
+            self.popup_context_menu
+        )
+        vertical_header.customContextMenuRequested.connect(
+            self.popup_context_menu
+        )
+
+    def popup_context_menu(self, position):
+        menu = QtGui.QMenu()
+        all_cols = []
+        for i in range(self._model.columnCount()):
+            all_cols.append(
+                menu.addAction(
+                    self._model.headerData(
+                        i, QtCore.Qt.Horizontal
+                    ).toString()
+                )
+            )
+            #menu.actions()[i]
+        # Add a separator:
+        menu.addSeparator()
+        all_cols.append(menu.addAction("Show all"))
+        all_cols.append(menu.addAction("Hide all"))
+        ac = menu.exec_(self.mapToGlobal(position))
+        if ac in all_cols:
+            idx = all_cols.index(ac)
+            if idx < len(all_cols) - 2:
+                if self.isColumnHidden(idx):
+                    self.showColumn(idx)
+                elif not self.isColumnHidden(idx):
+                    self.hideColumn(idx)
+            elif idx == len(all_cols) - 2:
+                for i in range(self._model.columnCount()):
+                    self.showColumn(i)
+            elif idx == len(all_cols) - 1:
+                for i in range(self._model.columnCount()):
+                    self.hideColumn(i)
+
+    def update_data(self, updated_data):
+        for i in range(len(updated_data)):
+            for j in range(len(updated_data[0])):
+                if self._model.item(i, j).text()\
+                        .compare(
+                            from_utf8(str(updated_data[i][j]))
+                        ) != 0:
+                    self._model.setData(
+                        self._model.index(i, j),
+                        QtCore.QVariant(from_utf8(str(updated_data[i][j])))
+                    )
+                    self._model.setData(
+                        self._model.index(i, j),
+                        QtGui.QColor(QtCore.Qt.red), QtCore.Qt.BackgroundRole
+                    )
+                    self._model.setData(
+                        self._model.index(i, j),
+                        QtGui.QColor(QtCore.Qt.black), QtCore.Qt.ForegroundRole
+                    )
+
+    def is_data_loaded(self):
+        return self._is_data_loaded
 
 ################################################################################
 # TODO: my refactoring main form;
@@ -723,11 +867,16 @@ class MainForm(QtGui.QWidget):
     def __init__(self):
         super(MainForm, self).__init__()
         #
+        self._quotation_view = None
         self._k_line_container = None
         #
         self.init_main_form()
 
     def init_main_form(self):
+        #
+        self.setWindowTitle(
+            translate("Form", "TE-K-Line", None)
+        )
         #
         # Size of MainForm:
         self.setMinimumWidth(800)
@@ -737,14 +886,33 @@ class MainForm(QtGui.QWidget):
         main_form_grid_layout = QtGui.QGridLayout(self)
         main_form_grid_layout.setContentsMargins(5, 0, 5, 5)
         #
-        # Tab-widget:
+        # Tab widget:
         tab_widget = QtGui.QTabWidget(self)
         tab_widget.setTabPosition(QtGui.QTabWidget.South)
+        #
+        # Menu bar:
+        menu_bar_for_tab_widget = QtGui.QMenuBar(self)
+        #
+        # Add tab_widget & tab_k_line_menu_bar:
+        main_form_grid_layout.addWidget(tab_widget, 1, 0, 1, 1)
+        main_form_grid_layout.addWidget(menu_bar_for_tab_widget, 0, 0, 1, 1)
+        #
+        self.init_tab_widget(tab_widget)
+        #
+        self.init_menu_bar(menu_bar_for_tab_widget)
+
+    def init_tab_widget(self, tab_widget):
         #
         # Tab 'List':
         tab_list = QtGui.QWidget()
         tab_list_grid_layout = QtGui.QGridLayout(tab_list)
         tab_widget.addTab(tab_list, from_utf8("List"))
+        quotation_view = QuotationView()
+        self._quotation_view = quotation_view
+        tab_list_grid_layout.addWidget(
+            quotation_view,
+            0, 0, 1, 1
+        )
         #
         # Tab 'K-Line':
         tab_k_line = QtGui.QWidget()
@@ -752,33 +920,57 @@ class MainForm(QtGui.QWidget):
         tab_widget.addTab(tab_k_line, from_utf8("K-Line"))
         pix_map_settings = PixMapSettings()
         k_line_container = KLineContainer(pix_map_settings)
-        #
         self._k_line_container = k_line_container
-        #
         tab_k_line_grid_layout.addWidget(
             k_line_container,
             0, 0, 1, 1
         )
+
+    def init_menu_bar(self, menu_bar):
         #
-        # Set tab text for all tabs:
-        self.setWindowTitle(
-            translate("Form", "TE-K-Line", None)
-        )
-        '''
-        tab_widget.setTabText(
-            tab_widget.indexOf(tab_k_line),
-            translate("Form", "K-Line", None)
-        )
-        tab_widget.setTabText(
-            tab_widget.indexOf(tab_none),
-            translate("Form", "None", None)
-        )
-        '''
+        # Add menu:
+        menu_quotation_list = menu_bar.addMenu("Quotation-List")
+        menu_k_line = menu_bar.addMenu("K-Line")
         #
-        # Menu_bar for tab 'K-Line':
-        tab_k_line_menu_bar = QtGui.QMenuBar(tab_widget)
-        menu_none = tab_k_line_menu_bar.addMenu("List")
-        menu_k_line = tab_k_line_menu_bar.addMenu("K-Line")
+        # Menu 'menu_quotation_list':
+        action_list_load = menu_quotation_list.addAction("Load data")
+        menu_quotation_list.addSeparator()
+        action_update_list = menu_quotation_list.addAction("Update data")
+        action_restore_list = menu_quotation_list.addAction("Restore data")
+        action_remove_list = menu_quotation_list.addAction("Remove data")
+        action_update_list.setEnabled(False)
+        action_restore_list.setEnabled(False)
+        action_remove_list.setEnabled(False)
+        # TODO: the following method 'lambda' to pass extra parameters;
+        QtCore.QObject.connect(
+            action_list_load,
+            QtCore.SIGNAL("triggered()"),
+            lambda x=AllDataForTest.get_model_data0(),
+            y=AllDataForTest.get_header_info0(),
+            z=[action_update_list, action_restore_list, action_remove_list]:
+            self.load_list_data(x, y, z)
+        )
+        QtCore.QObject.connect(
+            action_update_list,
+            QtCore.SIGNAL("triggered()"),
+            lambda x=AllDataForTest.get_updated_model_data0():
+            self.update_list_data(x)
+        )
+        QtCore.QObject.connect(
+            action_restore_list,
+            QtCore.SIGNAL("triggered()"),
+            lambda x=AllDataForTest.get_model_data0(),
+            y=AllDataForTest.get_header_info0():
+            self.restore_list_data(x, y)
+        )
+        QtCore.QObject.connect(
+            action_remove_list,
+            QtCore.SIGNAL("triggered()"),
+            lambda x=[
+                action_update_list, action_restore_list, action_remove_list
+            ]:
+            self.remove_list_data(x)
+        )
         #
         # Menu 'menu_k_line':
         action_load = menu_k_line.addAction("Load data file")
@@ -797,10 +989,6 @@ class MainForm(QtGui.QWidget):
             action_append,
             QtCore.SIGNAL("triggered()"), self.append_k_line
         )
-        #
-        # Add tab_widget & tab_k_line_menu_bar:
-        main_form_grid_layout.addWidget(tab_widget, 1, 0, 1, 1)
-        main_form_grid_layout.addWidget(tab_k_line_menu_bar, 0, 0, 1, 1)
 
     def update_k_line(self):
         # TODO: should be refactored as API;
@@ -825,3 +1013,30 @@ class MainForm(QtGui.QWidget):
             data_file = file_dialog.selectedFiles()[0]
             print(">>> Selected file: " + data_file)
             self._k_line_container.load_k_line(data_file)
+
+    def load_list_data(self, data, horizontal_header_info, action_list):
+        self._quotation_view.set_data(data)
+        self._quotation_view.set_horizontal_header(horizontal_header_info)
+        self._quotation_view.set_data_color()
+        self._quotation_view.enable_header_sorting()
+        self._quotation_view.enable_popup_context_menu()
+        #
+        for action in action_list:
+            action.setEnabled(True)
+
+    def update_list_data(self, updated_data):
+        self._quotation_view.update_data(updated_data)
+
+    def restore_list_data(self, data, horizontal_header_info):
+        self._quotation_view.set_data(data)
+        self._quotation_view.set_horizontal_header(horizontal_header_info)
+        self._quotation_view.show_header()
+        self._quotation_view.set_data_color()
+        self._quotation_view.enable_header_sorting()
+        self._quotation_view.enable_popup_context_menu()
+
+    def remove_list_data(self, action_list):
+        self._quotation_view.remove_data()
+        #
+        for action in action_list:
+            action.setEnabled(False)
