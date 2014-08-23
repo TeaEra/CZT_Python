@@ -8,6 +8,8 @@ from QuantUtils import from_utf8
 from QuantUtils import translate
 from QuantUtils import get_k_line_data_by_path
 from QuantUtils import get_min_and_max_price
+from QuantUtils import get_random_series_from
+from QuantUtils import get_random_series_list_from
 
 from QuantModel import RectLikeLine
 from QuantModel import PixMapSettings
@@ -1013,14 +1015,18 @@ class MainForm(QtGui.QWidget):
     def update_k_line(self):
         # TODO: should be refactored as API;
         updated_data = \
-            self._k_line_container.get_k_line().get_data().ix[0]
+            get_random_series_from(
+                self._k_line_container.get_k_line().get_data()
+            )
         #
         self._k_line_container.update_k_line(updated_data)
 
     def append_k_line(self):
         # TODO: should be refactored as API;
         appended_data = \
-            self._k_line_container.get_k_line().get_data()[0:1]
+            get_random_series_list_from(
+                self._k_line_container.get_k_line().get_data()
+            )
         #
         self._k_line_container.append_k_line(appended_data)
 
