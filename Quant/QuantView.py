@@ -1142,7 +1142,6 @@ class KLineView(QtGui.QWidget):
         self.update()
 
     def append_k_line(self, appended_data):
-        # TODO: ?????????
         self._data = pd.concat([self._data, appended_data])
         self._data_size = len(self._data)
         temp_width = \
@@ -1206,6 +1205,8 @@ class ContainerView(QtGui.QMainWindow):
         self._k_line_slider = k_line_slider
         self._k_line_size_setter = k_line_size_setter
         #
+        # sliderReleased is better than valueChanged:
+        #   - will not delay;
         QtCore.QObject.connect(
             k_line_slider,
             QtCore.SIGNAL("sliderReleased()"), self.slide_to_offset
