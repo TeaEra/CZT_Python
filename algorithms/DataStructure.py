@@ -8,18 +8,18 @@ class ListNode:
         self.next = None
 
 
-def create_nodes():
-    nodes = list()
-    for i in range(10, 0, -1):
-        nodes.append(ListNode(i))
-    for i in range(len(nodes) - 1):
-        nodes[i].next = nodes[i+1]
+def create_nodes(int_arr=None):
+    if not int_arr:
+        #
+        nodes = list()
+        for i in range(10, 0, -1):
+            nodes.append(ListNode(i))
+        for i in range(len(nodes) - 1):
+            nodes[i].next = nodes[i+1]
+        #
+        pointer = nodes[0]
+        return pointer
     #
-    pointer = nodes[0]
-    return pointer
-
-
-def create_nodes(int_arr):
     nodes = list()
     for i in range(len(int_arr)):
         nodes.append(ListNode(int_arr[i]))
