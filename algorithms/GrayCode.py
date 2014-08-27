@@ -1,45 +1,48 @@
+#_*_ coding: utf-8 _*_
+
 __author__ = 'TeaEra'
 
 
 def gray_code(n):
-    # TODO: wrong answer!!!???
     """
+    n=2:
+    00
+    01
+    11
+    10
+
+    n=3:
+    000
+    001
+    011
+    010
+    110
+    111
+    101
+    100
+
+    ...
+
+    [zh]
+    思路： 可以递归解决，将n=2时的情况前面+0，与n=2前面+1再翻转，concatenate即可得到结果；
     """
     if n == 0:
-        return []
+        return [0]
     elif n == 1:
         return [0, 1]
-    pos_arr = [0]
-    oper = 1
-    min_pos = 0
-    max_pos = n-1
-    intervals = 2**n - 1
-    for i in range(1, intervals):
-        if pos_arr[i-1] == min_pos:
-            oper = 1
-        elif pos_arr[i-1] == max_pos:
-            oper = -1
-        pos_arr.append(pos_arr[i-1] + oper)
-    print(pos_arr)
-    #
-    temp_str = ''.join(['0' for i in range(n)])
-    str_arr = list()
-    str_arr.append(temp_str)
-    for i in range(intervals):
-        temp_str = str_arr[i]
-        temp_pos = pos_arr[i]
-        changed_bit = '0' if temp_str[temp_pos] == '1' else '1'
-        temp_str = temp_str[:temp_pos] + changed_bit + temp_str[temp_pos+1:]
-        str_arr.append(temp_str)
-    int_arr = list()
-    for i in range(2**n):
-        int_arr.append(int(str_arr[i], 2))
-    return int_arr
+    arr = gray_code(n-1)
+    top_part = list()
+    bottom_part = list()
+    for each in arr:
+        top_part.append(each)
+    for each in arr[::-1]:
+        bottom_part.append((1 << (n-1)) + each)
+    return top_part + bottom_part
 
 if __name__ == "__main__":
     #
     print("---")
-    print(gray_code(3))
+    print(gray_code(2))
     #
     print("---")
-    print(gray_code(4))
+    print(gray_code(3))
