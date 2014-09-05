@@ -535,9 +535,13 @@ class KLineView(QtGui.QWidget):
         # 预设的画图参考值
         self._CONST_SETTINGS = dict()
         self._CONST_SETTINGS['max_width'] = 30000
-        self._CONST_SETTINGS['y_range'] = 4000
-        self._CONST_SETTINGS['margin_top'] = 20
-        self._CONST_SETTINGS['margin_bottom'] = 200
+        #self._CONST_SETTINGS['y_range'] = 4000
+        #self._CONST_SETTINGS['margin_top'] = 20
+        #self._CONST_SETTINGS['margin_bottom'] = 200
+        self._CONST_SETTINGS['y_range'] = self.height() - 10 - 20
+        self._CONST_SETTINGS['margin_top'] = 10
+        self._CONST_SETTINGS['margin_bottom'] = 20
+        #
         #
         self._CONST_SETTINGS['x_step'] = 30
         self._CONST_SETTINGS['rect_width'] = 24
@@ -761,6 +765,10 @@ class KLineView(QtGui.QWidget):
             pix_map_painter.drawLine(
                 each_rect_like_line.get_line()
             )
+        #
+        # TODO: test;
+        print(self.size())
+        print(self._pix_map.size())
         #
         self.update()
 
